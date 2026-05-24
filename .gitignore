@@ -32,3 +32,6 @@ src/grpc/generated/
 
 # Docker volumes (if ever bind-mounted locally)
 .docker-data/
+
+# Internal planning docs
+SYNC_SERVICE_PLAN-v2.md
