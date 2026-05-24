@@ -1,14 +1,20 @@
-import type { Collection } from "mongodb";
-import type { NewOplogEntry, OplogEntry } from "./oplogSchema.ts";
-import type { SequenceGenerator } from "./sequenceGenerator.ts";
+import type { Collection, MongoServerError } from "mongodb";
+import type { NewOplogEntry, OplogEntry } from "./oplogSchema.js";
+import type { SequenceGenerator } from "./sequenceGenerator.js";
 
 export interface OplogServiceOptions {
   defaultLimit?: number;
   maxLimit?: number;
 }
 
+export interface GetEntriesAfterOptions {
+  limit?: number;
+  collections?: string[];
+}
+
 const DEFAULT_LIMIT = 500;
 const MAX_LIMIT = 1000;
+const MONGO_DUPLICATE_KEY = 11000;
 
 export class OplogService {
   private readonly defaultLimit: number;
@@ -25,25 +31,43 @@ export class OplogService {
 
   /**
    * Assigns the next monotonic seq, inserts, and returns the persisted entry.
-   * Driver errors surface to the caller; no retry here.
+   * SPEC-026: on E11000 duplicate cdcEventId, return the existing row (idempotent).
    */
   async appendToOplog(entry: NewOplogEntry): Promise<OplogEntry> {
     const seq = await this.sequenceGenerator.nextSeq();
     const doc = { ...entry, seq } as OplogEntry;
-    const result = await this.collection.insertOne(doc);
-    return { ...doc, _id: result.insertedId };
+    try {
+      const result = await this.collection.insertOne(doc);
+      return { ...doc, _id: result.insertedId };
+    } catch (err) {
+      const mongoErr = err as MongoServerError;
+      if (mongoErr?.code === MONGO_DUPLICATE_KEY && entry.cdcEventId) {
+        const existing = await this.collection.findOne({ cdcEventId: entry.cdcEventId });
+        if (existing) return existing;
+      }
+      throw err;
+    }
   }
 
   async getEntriesAfter(
     seq: number,
     buckets: string[],
-    limit?: number,
+    optsOrLimit?: number | GetEntriesAfterOptions,
   ): Promise<OplogEntry[]> {
     if (buckets.length === 0) return [];
+    const options: GetEntriesAfterOptions =
+      typeof optsOrLimit === "number" ? { limit: optsOrLimit } : optsOrLimit ?? {};
+    const filter: Record<string, unknown> = {
+      seq: { $gt: seq },
+      bucket: { $in: buckets },
+    };
+    if (options.collections && options.collections.length > 0) {
+      filter.collection = { $in: options.collections };
+    }
     return this.collection
-      .find({ seq: { $gt: seq }, bucket: { $in: buckets } })
+      .find(filter)
       .sort({ seq: 1 })
-      .limit(this.clampLimit(limit))
+      .limit(this.clampLimit(options.limit))
       .toArray();
   }
 
@@ -58,11 +82,32 @@ export class OplogService {
     return latest?.seq ?? 0;
   }
 
+  // SPEC-029
+  async getLatestForDocument(
+    collection: string,
+    docId: string,
+  ): Promise<OplogEntry | null> {
+    return this.collection
+      .find({ collection, docId })
+      .sort({ seq: -1 })
+      .limit(1)
+      .next();
+  }
+
+  // SPEC-027 — generator wrapper so caller's break closes the cursor.
   replayFromSeq(seq: number, buckets: string[]): AsyncIterable<OplogEntry> {
     if (buckets.length === 0) return emptyAsyncIterable();
-    return this.collection
-      .find({ seq: { $gt: seq }, bucket: { $in: buckets } })
-      .sort({ seq: 1 });
+    const coll = this.collection;
+    return {
+      async *[Symbol.asyncIterator]() {
+        const cursor = coll.find({ seq: { $gt: seq }, bucket: { $in: buckets } }).sort({ seq: 1 });
+        try {
+          for await (const doc of cursor) yield doc;
+        } finally {
+          await cursor.close();
+        }
+      },
+    };
   }
 
   async replayDocument(
@@ -84,7 +129,17 @@ export class OplogService {
       if (buckets.length === 0) return emptyAsyncIterable();
       filter.bucket = { $in: buckets };
     }
-    return this.collection.find(filter).sort({ seq: 1 });
+    const coll = this.collection;
+    return {
+      async *[Symbol.asyncIterator]() {
+        const cursor = coll.find(filter).sort({ seq: 1 });
+        try {
+          for await (const doc of cursor) yield doc;
+        } finally {
+          await cursor.close();
+        }
+      },
+    };
   }
 
   async findByClientWrite(

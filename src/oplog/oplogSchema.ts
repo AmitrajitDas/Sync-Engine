@@ -1,6 +1,9 @@
 import type { ObjectId } from "mongodb";
 
-export type OplogOperation = "insert" | "update" | "delete";
+// SPEC-031 — PowerSync-compatible op taxonomy.
+// PUT: full replacement. PATCH: partial update. REMOVE: delete (tombstone).
+// MOVE / CLEAR: bucket compaction markers (server-emitted only).
+export type OplogOperation = "PUT" | "PATCH" | "REMOVE" | "MOVE" | "CLEAR";
 export type OplogOrigin = "server" | "client";
 
 export interface OplogEntry {
@@ -20,6 +23,8 @@ export interface OplogEntry {
   cdcSourceTopic?: string;
   cdcLsn?: string;
   cdcOffset?: string;
+  // SPEC-026 — idempotency key for at-least-once Kafka redelivery.
+  cdcEventId?: string;
 }
 
 export type NewOplogEntry = Omit<OplogEntry, "_id" | "seq">;
