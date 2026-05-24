@@ -1,6 +1,6 @@
 # Sync Engine
 
-Offline-first sync gateway for React Native clients. PowerSync-style protocol. One of two microservices — companion is RBAC + Business Base Service (Spring Boot).
+Offline-first sync gateway for React Native clients. PowerSync-style protocol.
 
 ## What it does
 
@@ -72,19 +72,19 @@ Push: `POST /sync/push` → sync rules → conflict pre-flight → gRPC `RbacChe
 
 ## Endpoints
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | /health | No | Liveness |
-| GET | /health/live | No | Liveness |
-| GET | /health/ready | No | Readiness (checks Mongo, Redis) |
-| GET | /metrics | No | Prometheus metrics |
-| GET | /sync/checkpoint | JWT | Max seq for user buckets |
-| POST | /sync/pull | JWT | Fetch oplog deltas |
-| POST | /sync/push | JWT | Submit client writes |
-| GET | /sync/snapshot | JWT | Full bootstrap snapshot (NDJSON) |
-| GET | /sync/schema | JWT | Client SQLite DDL + migrations |
-| POST | /sync/attachments/presign | JWT | Presign upload URL (via RBAC) |
-| GET | /sync/attachments/:id/url | JWT | Download URL (via RBAC) |
+| Method | Path                      | Auth | Description                      |
+| ------ | ------------------------- | ---- | -------------------------------- |
+| GET    | /health                   | No   | Liveness                         |
+| GET    | /health/live              | No   | Liveness                         |
+| GET    | /health/ready             | No   | Readiness (checks Mongo, Redis)  |
+| GET    | /metrics                  | No   | Prometheus metrics               |
+| GET    | /sync/checkpoint          | JWT  | Max seq for user buckets         |
+| POST   | /sync/pull                | JWT  | Fetch oplog deltas               |
+| POST   | /sync/push                | JWT  | Submit client writes             |
+| GET    | /sync/snapshot            | JWT  | Full bootstrap snapshot (NDJSON) |
+| GET    | /sync/schema              | JWT  | Client SQLite DDL + migrations   |
+| POST   | /sync/attachments/presign | JWT  | Presign upload URL (via RBAC)    |
+| GET    | /sync/attachments/:id/url | JWT  | Download URL (via RBAC)          |
 
 ## ADRs
 
