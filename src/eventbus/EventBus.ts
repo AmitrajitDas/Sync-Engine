@@ -1,7 +1,9 @@
+import type { OplogOperation } from "../oplog/oplogSchema.js";
+
 export interface NormalizedChangeEvent {
   collection: string;
   docId: string;
-  operation: "insert" | "update" | "delete";
+  operation: OplogOperation;
   delta: Record<string, unknown> | null;
   fullDoc?: Record<string, unknown>;
   bucket: string;
@@ -13,11 +15,16 @@ export interface NormalizedChangeEvent {
   cdcSourceTopic?: string;
   cdcLsn?: string;
   cdcOffset?: string;
+  cdcEventId?: string;
 }
+
+// SPEC-026 — ctx threads return values between consumers in priority order.
+export type ConsumerContext = Record<string, unknown>;
 
 export interface EventBusConsumer {
   name: string;
-  handle(event: NormalizedChangeEvent): Promise<void>;
+  priority?: number; // SPEC-026: smaller runs first; default 100
+  handle(event: NormalizedChangeEvent, ctx?: ConsumerContext): Promise<unknown>;
 }
 
 export interface EventBus {

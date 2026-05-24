@@ -1,8 +1,11 @@
 import type {
+  ConsumerContext,
   EventBus,
   EventBusConsumer,
   NormalizedChangeEvent,
 } from "./EventBus.js";
+
+const DEFAULT_PRIORITY = 100;
 
 export class EventBusPublishError extends Error {
   constructor(
@@ -25,22 +28,40 @@ export class InProcessEventBus implements EventBus {
     this.consumers.set(consumer.name, consumer);
   }
 
+  // SPEC-026 — group by priority asc; each group runs in parallel; lower-priority
+  // failure aborts higher-priority. Returns from earlier consumers thread to later
+  // consumers via ctx[`${consumer.name}Result`].
   async publish(event: NormalizedChangeEvent): Promise<void> {
     const consumers = [...this.consumers.values()];
     if (consumers.length === 0) return;
 
-    const results = await Promise.allSettled(
-      consumers.map((consumer) => consumer.handle(event)),
-    );
+    const groups = new Map<number, EventBusConsumer[]>();
+    for (const c of consumers) {
+      const p = c.priority ?? DEFAULT_PRIORITY;
+      if (!groups.has(p)) groups.set(p, []);
+      groups.get(p)!.push(c);
+    }
+    const priorities = [...groups.keys()].sort((a, b) => a - b);
 
-    const failures = results.flatMap((result, i) =>
-      result.status === "rejected"
-        ? [{ consumer: consumers[i].name, error: result.reason }]
-        : [],
-    );
+    const ctx: ConsumerContext = {};
 
-    if (failures.length > 0) {
-      throw new EventBusPublishError(failures);
+    for (const p of priorities) {
+      const group = groups.get(p)!;
+      const results = await Promise.allSettled(
+        group.map((c) => c.handle(event, ctx)),
+      );
+      const failures = results.flatMap((r, i) =>
+        r.status === "rejected" ? [{ consumer: group[i].name, error: r.reason }] : [],
+      );
+      if (failures.length > 0) {
+        throw new EventBusPublishError(failures);
+      }
+      for (let i = 0; i < group.length; i++) {
+        const r = results[i];
+        if (r.status === "fulfilled" && r.value !== undefined) {
+          ctx[`${group[i].name}Result`] = r.value;
+        }
+      }
     }
   }
 }
