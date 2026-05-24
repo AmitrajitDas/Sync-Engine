@@ -35,3 +35,4 @@ src/grpc/generated/
 
 # Internal planning docs
 SYNC_SERVICE_PLAN-v2.md
+docs/
