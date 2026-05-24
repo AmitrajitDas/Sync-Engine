@@ -21,6 +21,14 @@ const envSchema = z.object({
   OPLOG_TTL_DAYS: z.coerce.number().default(30),
   PULL_DEFAULT_LIMIT: z.coerce.number().default(500),
   PULL_MAX_LIMIT: z.coerce.number().default(1000),
+
+  PG_READ_REPLICA_URL: z.string().optional(),
+
+  SCHEMA_ROLLOUT_PERCENT: z.coerce.number().min(0).max(100).default(100),
+  SCHEMA_MIN_SUPPORTED_VERSION: z.coerce.number().default(1),
+  SCHEMA_KILL_SWITCH: z.coerce.boolean().default(false),
+
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
