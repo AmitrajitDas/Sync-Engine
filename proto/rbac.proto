@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+package rbac;
+
+import "google/protobuf/struct.proto";
+
+// ── RbacCheck ────────────────────────────────────────────────────────────────
+
+service RbacCheck {
+  rpc Check(CheckRequest) returns (CheckResponse);
+  rpc CheckBatch(CheckBatchRequest) returns (CheckBatchResponse);
+}
+
+message CheckRequest {
+  string tenant_id  = 1;
+  string user_id    = 2;
+  repeated string roles = 3;
+  string collection = 4;
+  string operation  = 5;
+  string doc_id     = 6;
+}
+
+message CheckResponse {
+  bool   allowed = 1;
+  string reason  = 2;
+}
+
+message CheckBatchRequest {
+  repeated CheckRequest checks = 1;
+}
+
+message CheckBatchResponse {
+  repeated CheckResponse results = 1;
+}
+
+// ── BusinessProxy ─────────────────────────────────────────────────────────────
+
+service BusinessProxy {
+  rpc ApplyWrite(ApplyWriteRequest) returns (ApplyWriteResponse);
+}
+
+message ApplyWriteRequest {
+  string tenant_id       = 1;
+  string user_id         = 2;
+  repeated string roles  = 3;
+  string collection      = 4;
+  string operation       = 5;
+  string doc_id          = 6;
+  google.protobuf.Struct payload = 7;
+  string idempotency_key = 8;
+  string client_id       = 9;
+  int64  client_seq      = 10;
+  int64  base_seq        = 11;
+}
+
+message ApplyWriteResponse {
+  string status            = 1; // "applied" | "rejected"
+  string doc_id            = 2;
+  int64  server_seq        = 3;
+  string reason            = 4;
+  int64  write_checkpoint  = 5; // SPEC-025 — oplog seq at which the write is observable
+}
+
+// ── AttachmentGrpc ────────────────────────────────────────────────────────────
+
+service AttachmentGrpc {
+  rpc Presign(PresignRequest) returns (PresignResponse);
+  rpc GetDownloadUrl(DownloadUrlRequest) returns (DownloadUrlResponse);
+}
+
+message PresignRequest {
+  string tenant_id    = 1;
+  string user_id      = 2;
+  string parent_type  = 3;
+  string parent_id    = 4;
+  string content_type = 5;
+  int64  size_bytes   = 6;
+}
+
+message PresignResponse {
+  string attachment_id = 1;
+  string upload_url    = 2;
+  string expires_at    = 3;
+}
+
+message DownloadUrlRequest {
+  string tenant_id     = 1;
+  string user_id       = 2;
+  string attachment_id = 3;
+}
+
+message DownloadUrlResponse {
+  string url        = 1;
+  string expires_at = 2;
+}
