@@ -69,10 +69,36 @@ services:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
 
+  postgres:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: rbac
+      POSTGRES_PASSWORD: rbac
+      POSTGRES_DB: rbac
+      POSTGRES_INITDB_ARGS: "--wal-level=logical"
+    command: >
+      postgres
+        -c wal_level=logical
+        -c max_wal_senders=4
+        -c max_replication_slots=4
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rbac -d rbac"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   debezium-connect:
-    image: debezium/connect:latest
+    image: debezium/connect:2.7
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     ports:
       - "8083:8083"
     environment:
@@ -116,3 +142,4 @@ volumes:
   zookeeper_data:
   zookeeper_log:
   minio_data:
+  postgres_data:
