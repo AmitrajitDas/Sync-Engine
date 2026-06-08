@@ -1,5 +1,9 @@
 import type { OplogOperation } from "./oplogSchema.js";
 
+/*
+ * Compatibility mapper between older CRUD names and the oplog operation
+ * taxonomy used by the sync protocol.
+ */
 export type LegacyOp = "insert" | "update" | "delete";
 
 export function legacyToTaxonomy(op: LegacyOp | string): OplogOperation {

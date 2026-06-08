@@ -3,6 +3,13 @@ import type {
   EventBusConsumer,
   NormalizedChangeEvent,
 } from "../EventBus.js";
+/*
+ * Second EventBus consumer in the CDC pipeline.
+ *
+ * It assumes OplogConsumer already persisted the event. It then notifies local
+ * WebSocket clients and uses RedisFanout so other Sync Engine instances can
+ * notify their own connected clients.
+ */
 import type { SubscriptionRegistry } from "../../realtime/subscriptionRegistry.js";
 import type { RedisFanout } from "../../realtime/redisFanout.js";
 import type { OplogConsumerResult } from "./OplogConsumer.js";

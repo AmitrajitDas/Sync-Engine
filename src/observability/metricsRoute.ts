@@ -1,4 +1,9 @@
 import type { FastifyInstance } from "fastify";
+/*
+ * Prometheus scrape endpoint.
+ *
+ * Exposes all metrics registered in observability/metrics.ts at /metrics.
+ */
 import { registry } from "./metrics.js";
 
 export async function metricsRoute(app: FastifyInstance): Promise<void> {

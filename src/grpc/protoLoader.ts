@@ -1,4 +1,10 @@
 import * as grpc from "@grpc/grpc-js";
+/*
+ * Dynamic proto loader for RBAC/business gRPC services.
+ *
+ * The generated stubs are not checked in here; instead the proto is loaded at
+ * runtime and wrapped by typed client classes in this folder.
+ */
 import * as protoLoader from "@grpc/proto-loader";
 import { fileURLToPath } from "url";
 import path from "path";

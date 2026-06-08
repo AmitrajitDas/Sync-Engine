@@ -17,6 +17,7 @@ describe("parseEnv", () => {
     expect(result.LOG_LEVEL).toBe("info");
     expect(result.KAFKA_CONSUMER_GROUP).toBe("sync-service");
     expect(result.KAFKA_CDC_TOPIC_PREFIX).toBe("business.cdc.public.");
+    expect(result.KAFKA_TOPIC_REFRESH_INTERVAL_MS).toBe(30_000);
     expect(result.RBAC_GRPC_TIMEOUT_MS).toBe(2000);
     expect(result.OPLOG_TTL_DAYS).toBe(30);
     expect(result.PULL_DEFAULT_LIMIT).toBe(500);

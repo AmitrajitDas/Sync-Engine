@@ -1,4 +1,10 @@
 import type { OplogService } from "../oplog/oplogService.js";
+/*
+ * Conflict resolution coordinator.
+ *
+ * It does not implement merge policy itself. It finds the latest server version
+ * from the oplog, chooses the collection's configured strategy, and delegates.
+ */
 import type { WriteRequest } from "../sync/syncTypes.js";
 import { COLLECTIONS } from "../sync/syncRegistry.js";
 import type { ConflictResult, ConflictStrategy } from "./conflictTypes.js";

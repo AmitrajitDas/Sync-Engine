@@ -3,6 +3,12 @@ export interface SequenceGenerator {
 }
 
 /**
+ * Sequence numbers are logical sync checkpoints.
+ *
+ * Every oplog entry gets exactly one monotonic seq. Clients use that number as
+ * "I have applied everything up to here", which is why this must be atomic and
+ * cannot be derived from timestamps.
+ *
  * Local-dev only. Production sequence ownership stays with RBAC/Postgres.
  * No sequence is derived from timestamps.
  */

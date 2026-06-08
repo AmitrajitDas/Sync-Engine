@@ -1,4 +1,11 @@
 import * as grpc from "@grpc/grpc-js";
+/*
+ * gRPC wrapper for business writes.
+ *
+ * /sync/push never writes business tables directly. It sends cleaned and
+ * authorized writes here, then Postgres/Debezium eventually reflects the change
+ * back into the sync oplog.
+ */
 import type { SyncUser } from "../gateway/types.js";
 import type { WriteRequest } from "../sync/syncTypes.js";
 import { DependencyUnavailableError } from "../gateway/plugins/errorHandler.js";
@@ -36,6 +43,37 @@ type GrpcBusinessClient = grpc.Client & {
     ) => void,
   ) => void;
 };
+
+interface ProtoStruct {
+  fields: Record<string, ProtoValue>;
+}
+
+type ProtoValue =
+  | { nullValue: 0 }
+  | { numberValue: number }
+  | { stringValue: string }
+  | { boolValue: boolean }
+  | { structValue: ProtoStruct }
+  | { listValue: { values: ProtoValue[] } };
+
+function toProtoValue(value: unknown): ProtoValue {
+  if (value === null || value === undefined) return { nullValue: 0 };
+  if (typeof value === "number") return { numberValue: value };
+  if (typeof value === "string") return { stringValue: value };
+  if (typeof value === "boolean") return { boolValue: value };
+  if (Array.isArray(value)) {
+    return { listValue: { values: value.map(toProtoValue) } };
+  }
+  return { structValue: toProtoStruct(value as Record<string, unknown>) };
+}
+
+export function toProtoStruct(value: Record<string, unknown>): ProtoStruct {
+  return {
+    fields: Object.fromEntries(
+      Object.entries(value).map(([key, fieldValue]) => [key, toProtoValue(fieldValue)]),
+    ),
+  };
+}
 
 export interface ApplyWriteArgs {
   write: WriteRequest;
@@ -75,7 +113,9 @@ export class BusinessProxyClient {
           collection: write.collection,
           operation: write.operation,
           doc_id: write.docId,
-          payload: write.payload,
+          // google.protobuf.Struct must be encoded using its fields/value shape;
+          // passing a plain JS object silently serializes as an empty Struct.
+          payload: toProtoStruct(write.payload),
           idempotency_key: write.idempotencyKey,
           client_id: clientId,
           client_seq: write.clientSeq,

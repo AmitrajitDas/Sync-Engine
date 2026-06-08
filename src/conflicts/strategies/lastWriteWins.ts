@@ -1,5 +1,12 @@
 import type { ConflictContext, ConflictResult, ConflictStrategy } from "../conflictTypes.js";
 
+/*
+ * Field-aware last-write-wins strategy.
+ *
+ * The client timestamp is compared against server field timestamps when
+ * available. Newer client fields are merged into the latest server doc; older
+ * client fields lose to the server version.
+ */
 type FieldTimestamps = Record<string, string>;
 
 interface MetaDoc {

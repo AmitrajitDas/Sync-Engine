@@ -1,4 +1,10 @@
 import { COLLECTIONS } from "../sync/syncRegistry.js";
+/*
+ * CDC bucket strategy derived from the sync registry.
+ *
+ * Keeping this derived avoids one class of bugs: a collection being pulled from
+ * one bucket group while CDC writes it into another bucket group.
+ */
 import { pullRules } from "../sync/syncRules.js";
 
 export interface CollectionBucketStrategy {

@@ -1,4 +1,10 @@
-// SPEC-032 — PowerSync-style per-bucket checksum.
+/*
+ * PowerSync-style per-bucket checksum.
+ *
+ * The checksum lets a client and server cheaply compare "do we agree on bucket
+ * contents up to seq X?" without replaying every entry. A mismatch tells the
+ * client it should repair/re-snapshot that bucket.
+ */
 import type { OplogEntry } from "./oplogSchema.js";
 
 const MOD32 = 0x1_0000_0000;

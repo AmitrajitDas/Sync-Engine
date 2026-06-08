@@ -1,4 +1,11 @@
 import { isDeepStrictEqual } from "node:util";
+/*
+ * Debezium/Postgres -> Sync Engine change mapper.
+ *
+ * Debezium describes database mutations as before/after row envelopes. The rest
+ * of the service wants collection/docId/operation/bucket/delta entries, so this
+ * module is the translation layer between database CDC and sync protocol terms.
+ */
 import type { NormalizedChangeEvent } from "../eventbus/EventBus.js";
 import type { OplogOperation } from "../oplog/oplogSchema.js";
 import { COLLECTION_BUCKETS } from "./bucketStrategy.js";
@@ -86,7 +93,9 @@ export function normalizeDebeziumEnvelope(
     throw new Error(`Missing "tenant_id" in CDC row for topic "${meta.sourceTopic}"`);
   }
 
-  // SPEC-024 — collection-aware bucket derivation.
+  // Bucket derivation is intentionally collection-aware. Region-scoped data and
+  // user-scoped data land in different buckets so clients only pull what they
+  // are allowed to see.
   const strategy = COLLECTION_BUCKETS[collection];
   if (!strategy) {
     throw new Error(`No bucket strategy for collection: ${collection}`);
@@ -112,7 +121,9 @@ export function normalizeDebeziumEnvelope(
     bucket = `tenant:${tenantId}:user:${userId}`;
   }
 
-  // SPEC-025 — propagate client_id / client_seq through CDC.
+  // Client-originated writes are applied by the business service, then return
+  // through CDC. Preserving client_id/client_seq lets clients identify their
+  // own acknowledged writes when they later appear in the oplog.
   let clientId: string | undefined;
   let clientSeq: number | undefined;
   let origin: "server" | "client" = "server";

@@ -1,4 +1,11 @@
 import { pullRules, writeRules } from "./syncRules.js";
+/*
+ * Runtime enforcement for sync policy.
+ *
+ * Pull uses projectFields() to hide fields a client should not receive. Push
+ * uses validateWrite() to reject unknown/disallowed writes and strip protected
+ * fields before anything reaches RBAC or the business service.
+ */
 import type { WriteRequest } from "./syncTypes.js";
 import type { ClientOperation } from "./syncRegistry.js";
 import type { SyncUser } from "../gateway/types.js";
@@ -15,6 +22,9 @@ export interface ProjectedEntry {
   bucket: string;
   tenantId: string;
   timestamp: Date;
+  origin: OplogEntry["origin"];
+  clientId?: string;
+  clientSeq?: number;
   priority?: number;
 }
 
@@ -55,6 +65,9 @@ export function projectFields(entry: OplogEntry): ProjectedEntry {
     bucket: entry.bucket,
     tenantId: entry.tenantId,
     timestamp: entry.timestamp,
+    origin: entry.origin,
+    clientId: entry.clientId,
+    clientSeq: entry.clientSeq,
     priority: rule?.priority,
   };
 }
@@ -92,6 +105,8 @@ export function validateWrite(write: WriteRequest, user: SyncUser): CleanedWrite
   }
 
   const cleanedPayload = { ...write.payload };
+  // Protected fields are server-owned. A client may send them by accident or
+  // malice, but they are removed before the write is authorized/applied.
   for (const field of rule.protectedFields) {
     delete cleanedPayload[field];
   }

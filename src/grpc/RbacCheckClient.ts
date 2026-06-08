@@ -1,4 +1,11 @@
 import * as grpc from "@grpc/grpc-js";
+/*
+ * gRPC wrapper for RBAC authorization checks.
+ *
+ * Push and snapshot routes call this before allowing access. This keeps
+ * authorization delegated to RBAC instead of duplicating domain permissions in
+ * the sync gateway.
+ */
 import type { SyncUser } from "../gateway/types.js";
 import type { WriteRequest } from "../sync/syncTypes.js";
 import { PermissionError, DependencyUnavailableError } from "../gateway/plugins/errorHandler.js";

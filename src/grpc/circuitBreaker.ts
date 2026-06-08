@@ -1,4 +1,11 @@
 import CircuitBreaker from "opossum";
+/*
+ * Shared circuit-breaker policy for outbound gRPC calls.
+ *
+ * Retryable dependency failures can open the breaker. Expected business errors
+ * such as permission denied or invalid argument are not counted as dependency
+ * health failures.
+ */
 import * as grpc from "@grpc/grpc-js";
 
 // UNAVAILABLE is the only retryable gRPC status.

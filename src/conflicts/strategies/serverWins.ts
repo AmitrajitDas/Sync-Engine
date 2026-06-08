@@ -1,5 +1,11 @@
 import type { ConflictContext, ConflictResult, ConflictStrategy } from "../conflictTypes.js";
 
+/*
+ * Server-wins strategy.
+ *
+ * Used for collections where client-side merging is risky. If the server has
+ * any version of the document, the client must reconcile against that version.
+ */
 export class ServerWinsStrategy implements ConflictStrategy {
   resolve(ctx: ConflictContext): ConflictResult {
     const { serverLatest } = ctx;

@@ -1,5 +1,8 @@
 import { Type, type Static } from "@sinclair/typebox";
 
+/*
+ * TypeBox schemas for client schema/version negotiation.
+ */
 export const SchemaQuerySchema = Type.Object({
   version: Type.Optional(Type.String()),
 });

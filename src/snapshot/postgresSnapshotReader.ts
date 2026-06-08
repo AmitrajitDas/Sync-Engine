@@ -1,11 +1,17 @@
 import type { Pool } from "pg";
+/*
+ * Postgres snapshot reader.
+ *
+ * Used by /sync/snapshot for initial bootstrap. It streams rows through a
+ * database cursor so large tenants do not need to fit in process memory.
+ */
 import type { SnapshotReadParams, SnapshotReader } from "../gateway/routes/snapshot.js";
 import { DependencyUnavailableError, ValidationError } from "../gateway/plugins/errorHandler.js";
 
 interface TableSpec {
   table: string;
   tenantColumn: string;
-  bucketColumn: "region" | "user_id";
+  bucketColumn: "region" | "user_id" | "uploaded_by";
 }
 
 // Static allowlist: collection -> physical table mapping.
@@ -19,7 +25,7 @@ const TABLE_MAP: Record<string, TableSpec> = {
   gdc_submissions:{ table: "gdc_submissions",tenantColumn: "tenant_id", bucketColumn: "region" },
   invoices:       { table: "invoices",       tenantColumn: "tenant_id", bucketColumn: "user_id" },
   farm_members:   { table: "farm_members",   tenantColumn: "tenant_id", bucketColumn: "user_id" },
-  attachments:    { table: "attachments",    tenantColumn: "tenant_id", bucketColumn: "user_id" },
+  attachments:    { table: "attachments",    tenantColumn: "tenant_id", bucketColumn: "uploaded_by" },
 };
 
 function parseBucket(bucket: string): { tenantId: string; region?: string; userId?: string } {
@@ -50,11 +56,13 @@ export class PostgresSnapshotReader implements SnapshotReader {
     let bucketClause = "";
 
     if (region !== undefined) {
+      if (spec.bucketColumn !== "region") return;
       paramValues.push(region);
-      bucketClause = `AND region = $${paramValues.length}`;
+      bucketClause = `AND ${spec.bucketColumn} = $${paramValues.length}`;
     } else if (userId !== undefined) {
+      if (spec.bucketColumn === "region") return;
       paramValues.push(userId);
-      bucketClause = `AND user_id = $${paramValues.length}`;
+      bucketClause = `AND ${spec.bucketColumn} = $${paramValues.length}`;
     }
 
     // Table name comes from allowlist, never from user input — safe to interpolate.

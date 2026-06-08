@@ -1,4 +1,10 @@
 import type { FastifyInstance } from "fastify";
+/*
+ * Kubernetes-style health routes.
+ *
+ * /health/live checks that the process is alive. /health/ready checks whether
+ * dependencies are available enough for the service to receive traffic.
+ */
 import type { Db } from "mongodb";
 import type { Redis } from "ioredis";
 

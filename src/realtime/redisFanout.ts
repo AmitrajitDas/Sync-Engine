@@ -1,4 +1,11 @@
 import type { Redis } from "ioredis";
+/*
+ * Cross-instance realtime fanout.
+ *
+ * Local WebSocket clients are notified directly. Redis pub/sub carries the same
+ * bucket+seq notification to other Sync Engine instances so their local clients
+ * hear about the change too.
+ */
 import type { SubscriptionRegistry } from "./subscriptionRegistry.js";
 import type { OplogService } from "../oplog/oplogService.js";
 import { randomUUID } from "node:crypto";

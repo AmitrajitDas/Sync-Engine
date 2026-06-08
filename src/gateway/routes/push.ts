@@ -1,4 +1,11 @@
 import type { FastifyInstance } from "fastify";
+/*
+ * POST /sync/push
+ *
+ * Incremental upload path. This route validates client writes, resolves
+ * conflicts using the oplog, delegates authorization to RBAC, and delegates the
+ * actual business mutation to BusinessProxy.
+ */
 import type { OplogService } from "../../oplog/oplogService.js";
 import type { RbacCheckClient } from "../../grpc/RbacCheckClient.js";
 import type { BusinessProxyClient } from "../../grpc/BusinessProxyClient.js";
@@ -53,6 +60,8 @@ export async function pushRoutes(
       for (const write of body.writes) {
         let cleaned: WriteRequest;
         try {
+          // Local sync rules catch obvious invalid writes and strip server-owned
+          // fields before any external service sees the payload.
           cleaned = validateWrite(write, user);
         } catch (err) {
           if (err instanceof ValidationError) {
@@ -64,6 +73,8 @@ export async function pushRoutes(
 
         let conflictResult;
         try {
+          // Conflict resolution is based on the latest server-known oplog entry.
+          // If server wins, the client gets the server version to reconcile.
           conflictResult = await opts.conflictResolver.resolve(cleaned);
         } catch (err) {
           throw new DependencyUnavailableError(
@@ -84,6 +95,7 @@ export async function pushRoutes(
 
         let allowed = true;
         try {
+          // RBAC remains the authority for permission decisions.
           allowed = await opts.rbacCheck.check(user, writeToSend);
         } catch (err) {
           if (err instanceof DependencyUnavailableError) throw err;
@@ -98,6 +110,8 @@ export async function pushRoutes(
 
         let applyResult;
         try {
+          // BusinessProxy owns the real Postgres write. CDC will later bring the
+          // result back into Mongo oplog for pull/stream visibility.
           applyResult = await opts.businessProxy.applyWrite(writeToSend, user, body.clientId);
         } catch (err) {
           if (err instanceof DependencyUnavailableError) throw err;

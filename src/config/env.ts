@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+/*
+ * Environment contract.
+ *
+ * parseEnv() is called at boot so missing/invalid infrastructure settings fail
+ * fast before the server starts accepting sync traffic.
+ */
 const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
@@ -10,6 +16,7 @@ const envSchema = z.object({
   KAFKA_BROKERS: z.string().min(1),
   KAFKA_CONSUMER_GROUP: z.string().default("sync-service"),
   KAFKA_CDC_TOPIC_PREFIX: z.string().default("business.cdc.public."),
+  KAFKA_TOPIC_REFRESH_INTERVAL_MS: z.coerce.number().positive().default(30_000),
 
   JWKS_URL: z.string().url(),
   JWT_ISSUER: z.string().min(1),
@@ -44,4 +51,3 @@ export function parseEnv(raw: NodeJS.ProcessEnv = process.env): Env {
   }
   return result.data;
 }
-

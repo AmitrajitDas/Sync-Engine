@@ -1,4 +1,10 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
+/*
+ * GET /sync/schema
+ *
+ * Mobile clients use this endpoint to learn the local SQLite schema, migrations,
+ * and whether their current schema version is still allowed to sync.
+ */
 import { getSchemaResponse } from "../../sync/clientSchema.js";
 import { ValidationError } from "../plugins/errorHandler.js";
 import { SchemaResponseSchema } from "../schemas/schemaSchema.js";

@@ -1,4 +1,10 @@
 import type { WebSocket } from "@fastify/websocket";
+/*
+ * In-memory index of active realtime connections.
+ *
+ * Each process tracks only its own sockets. RedisFanout is responsible for
+ * broadcasting bucket notifications between processes.
+ */
 import type { StreamSession } from "./streamSession.js";
 
 interface Connection {
