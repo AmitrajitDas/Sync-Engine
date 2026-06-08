@@ -1,4 +1,10 @@
 import type { FastifyInstance } from "fastify";
+/*
+ * Per-route rate limits for expensive sync endpoints.
+ *
+ * Pull is high-volume and relatively cheap, push is lower-volume and mutating,
+ * and snapshot is the most expensive bootstrap path.
+ */
 import fastifyRateLimit from "@fastify/rate-limit";
 import type { Redis } from "ioredis";
 

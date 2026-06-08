@@ -1,6 +1,15 @@
-// SPEC-035 — single source of truth for per-collection sync config.
-// pullRules, writeRules, COLLECTION_BUCKETS, LWW_COLLECTIONS, BUCKET_GROUPS
-// are all derived from this registry.
+/*
+ * Single source of truth for per-collection sync behavior.
+ *
+ * This registry answers the main policy questions:
+ * - which bucket group each collection belongs to,
+ * - which roles/operations are allowed on push,
+ * - which fields clients are never allowed to mutate,
+ * - which conflict strategy applies.
+ *
+ * pullRules, writeRules, COLLECTION_BUCKETS, LWW_COLLECTIONS, and BUCKET_GROUPS
+ * are derived from here to avoid policy drift across modules.
+ */
 
 export type BucketGroup = "by_region" | "by_user";
 export type ClientOperation = "PUT" | "PATCH" | "REMOVE";

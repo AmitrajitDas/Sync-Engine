@@ -5,6 +5,13 @@ import type {
   NormalizedChangeEvent,
 } from "./EventBus.js";
 
+/*
+ * Simple priority-aware in-process event bus.
+ *
+ * It is deliberately not Kafka/Rabbit/etc. CDC already uses Kafka at the
+ * boundary; once a message reaches this process, consumers are just ordered
+ * side effects that must happen before Kafka offset acknowledgement.
+ */
 const DEFAULT_PRIORITY = 100;
 
 export class EventBusPublishError extends Error {

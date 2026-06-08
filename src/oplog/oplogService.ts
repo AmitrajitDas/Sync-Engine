@@ -1,4 +1,11 @@
 import type { Collection, MongoServerError } from "mongodb";
+/*
+ * Oplog data-access layer.
+ *
+ * Routes and consumers should use this class instead of querying Mongo
+ * directly. That keeps checkpoint paging, idempotent inserts, and latest-doc
+ * conflict lookups consistent across the service.
+ */
 import type { NewOplogEntry, OplogEntry } from "./oplogSchema.js";
 import type { SequenceGenerator } from "./sequenceGenerator.js";
 
@@ -55,6 +62,8 @@ export class OplogService {
     optsOrLimit?: number | GetEntriesAfterOptions,
   ): Promise<OplogEntry[]> {
     if (buckets.length === 0) return [];
+    // Incremental sync query: "for these buckets, give me changes after seq N
+    // in increasing seq order, optionally limited to certain collections."
     const options: GetEntriesAfterOptions =
       typeof optsOrLimit === "number" ? { limit: optsOrLimit } : optsOrLimit ?? {};
     const filter: Record<string, unknown> = {
@@ -72,6 +81,8 @@ export class OplogService {
   }
 
   async getLatestSeq(buckets?: string[]): Promise<number> {
+    // Checkpoint query: latest visible sequence for the whole service or for a
+    // user's accessible buckets.
     const filter =
       buckets && buckets.length > 0 ? { bucket: { $in: buckets } } : {};
     const latest = await this.collection
@@ -87,6 +98,8 @@ export class OplogService {
     collection: string,
     docId: string,
   ): Promise<OplogEntry | null> {
+    // Conflict-resolution query: find the newest known server version of one
+    // logical document without replaying the whole document history.
     return this.collection
       .find({ collection, docId })
       .sort({ seq: -1 })

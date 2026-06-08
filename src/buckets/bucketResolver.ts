@@ -1,4 +1,10 @@
 import type { SyncUser } from "../gateway/types.js";
+/*
+ * User -> sync bucket resolver.
+ *
+ * Buckets are the service's coarse-grained access partitions. Routes use these
+ * bucket names to filter oplog reads and realtime subscriptions.
+ */
 import { BUCKET_GROUP_PRIORITY, type BucketGroup } from "../sync/syncRegistry.js";
 
 export interface BucketWithPriority {
@@ -8,6 +14,8 @@ export interface BucketWithPriority {
 }
 
 export function resolveBucketsWithPriority(user: SyncUser): BucketWithPriority[] {
+  // Every user sees region-scoped data for their region and user-scoped data for
+  // themselves. Tenant admins additionally get a wildcard tenant bucket.
   const out: BucketWithPriority[] = [
     {
       bucket: `tenant:${user.tenantId}:region:${user.region}`,

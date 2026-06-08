@@ -1,4 +1,10 @@
 import type { FastifyInstance, FastifyError } from "fastify";
+/*
+ * Central HTTP error mapping.
+ *
+ * Domain/service code throws typed errors, and this plugin turns them into a
+ * stable API response shape. Unknown errors are logged and hidden from clients.
+ */
 import fp from "fastify-plugin";
 
 export class AuthError extends Error {

@@ -1,3 +1,10 @@
+/*
+ * Client-side SQLite schema contract.
+ *
+ * Mobile clients call /sync/schema to receive this DDL, optional migrations, and
+ * rollout/upgrade policy. This keeps local storage schema versioned alongside
+ * the sync protocol.
+ */
 export const CURRENT_SCHEMA_VERSION = 1;
 export const MIN_SUPPORTED_VERSION = 1;
 

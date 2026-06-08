@@ -1,4 +1,12 @@
-import Fastify from "fastify";
+import Fastify, { type FastifyRequest } from "fastify";
+/*
+ * Fastify application factory.
+ *
+ * `index.ts` passes real dependencies here in production. Tests can call
+ * `buildApp()` with only the dependencies needed for the route under test, so
+ * routes are mounted conditionally instead of every test needing Mongo, Redis,
+ * Kafka, and gRPC.
+ */
 import cors from "@fastify/cors";
 import compress from "@fastify/compress";
 import type { Env } from "./config/env.js";
@@ -28,7 +36,40 @@ import { schemaRoutes } from "./gateway/routes/schema.js";
 import { attachmentRoutes } from "./gateway/routes/attachment.js";
 import { subscribeRoutes } from "./gateway/routes/subscribe.js";
 import { streamRoutes } from "./gateway/routes/stream.js";
+import { ensureWebsocketPlugin } from "./gateway/plugins/websocket.js";
 import { metricsRoute } from "./observability/metricsRoute.js";
+
+const SENSITIVE_QUERY_PARAMS = ["token", "access_token", "id_token", "jwt"];
+
+function redactSensitiveQueryParams(rawUrl: string | undefined): string | undefined {
+  if (!rawUrl) return rawUrl;
+
+  try {
+    const url = new URL(rawUrl, "http://localhost");
+    let redacted = false;
+    for (const param of SENSITIVE_QUERY_PARAMS) {
+      if (url.searchParams.has(param)) {
+        url.searchParams.set(param, "[REDACTED]");
+        redacted = true;
+      }
+    }
+
+    return redacted ? `${url.pathname}${url.search}` : rawUrl;
+  } catch {
+    return rawUrl;
+  }
+}
+
+function serializeRequestForLogs(req: FastifyRequest) {
+  const raw = req.raw;
+  return {
+    method: raw.method,
+    url: redactSensitiveQueryParams(raw.url),
+    host: raw.headers.host,
+    remoteAddress: raw.socket.remoteAddress,
+    remotePort: raw.socket.remotePort,
+  };
+}
 
 export interface SchemaEnv {
   rolloutPercent: number;
@@ -63,6 +104,9 @@ export async function buildApp(
         paths: ["req.headers.authorization", "*.token", "*.jwt", "*.password"],
         censor: "[REDACTED]",
       },
+      serializers: {
+        req: serializeRequestForLogs,
+      },
     },
   });
 
@@ -92,6 +136,8 @@ export async function buildApp(
     ? (deps.redis as unknown as CheckpointCacheStore)
     : undefined;
 
+  // Pull/checkpoint are read-only oplog routes, so they only need the oplog
+  // service plus optional Redis-backed fast paths.
   if (deps.oplogService) {
     await app.register(checkpointRoutes, {
       oplogService: deps.oplogService,
@@ -114,6 +160,8 @@ export async function buildApp(
     deps.rbacCheck &&
     deps.businessProxy
   ) {
+    // Push needs the full write pipeline: local validation, conflict lookup,
+    // RBAC authorization, and business persistence through gRPC.
     await app.register(pushRoutes, {
       oplogService: deps.oplogService,
       conflictResolver: deps.conflictResolver,
@@ -123,6 +171,8 @@ export async function buildApp(
   }
 
   if (deps.oplogService && deps.snapshotReader && deps.rbacCheck) {
+    // Snapshot is a bootstrap path: stream full rows from Postgres and mark the
+    // oplog seq that the client should continue pulling from afterward.
     await app.register(snapshotRoutes, {
       oplogService: deps.oplogService,
       snapshotReader: deps.snapshotReader,
@@ -136,10 +186,14 @@ export async function buildApp(
   }
 
   if (deps.attachmentClient) {
+    // Attachments are not stored here; this route only brokers signed URLs.
     await app.register(attachmentRoutes, { attachmentClient: deps.attachmentClient });
   }
 
   if (authConfigured && deps.oplogService && deps.subscriptionRegistry) {
+    // WebSocket routes require auth because bucket membership is derived from
+    // the JWT, then reused to filter live checkpoint/data notifications.
+    await ensureWebsocketPlugin(app);
     await app.register(subscribeRoutes, {
       oplogService: deps.oplogService,
       subscriptionRegistry: deps.subscriptionRegistry,

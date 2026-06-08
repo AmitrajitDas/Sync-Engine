@@ -1,4 +1,10 @@
 import type { FastifyInstance } from "fastify";
+/*
+ * Attachment routes.
+ *
+ * These are thin pass-through endpoints. The sync gateway authenticates the
+ * user, then the attachment service decides URL generation and storage policy.
+ */
 import type { AttachmentClient } from "../../grpc/AttachmentClient.js";
 import {
   PresignRequestSchema,

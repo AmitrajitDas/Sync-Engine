@@ -1,5 +1,10 @@
-// SPEC-026 — atomic monotonic checkpoint cache. Final value is the max of
-// concurrent writes, never regressing.
+/*
+ * Redis-backed checkpoint cache helper.
+ *
+ * Checkpoints must only move forward. If two CDC events update the same bucket
+ * concurrently, this helper stores the max seq instead of allowing an older
+ * write to overwrite a newer checkpoint.
+ */
 
 export interface CheckpointCacheStore {
   get(key: string): Promise<string | null>;

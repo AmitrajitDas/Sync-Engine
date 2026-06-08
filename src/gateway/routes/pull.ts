@@ -1,4 +1,11 @@
 import type { FastifyInstance } from "fastify";
+/*
+ * POST /sync/pull
+ *
+ * Incremental download path. The client sends its last checkpoint, and the
+ * server returns oplog entries after that seq for the client's accessible
+ * buckets. This is the main offline-sync read flow.
+ */
 import type { OplogService } from "../../oplog/oplogService.js";
 import { projectFields } from "../../sync/syncRulesEngine.js";
 import { PullRequestSchema, PullResponseSchema } from "../schemas/pullSchema.js";
@@ -80,7 +87,8 @@ export async function pullRoutes(
         };
       }
 
-      // Fast path: all bucket checkpoints <= client checkpoint
+      // Fast path: if Redis says every bucket's latest checkpoint is already
+      // <= the client's checkpoint, avoid querying Mongo entirely.
       if (opts.cache) {
         try {
           const values = await Promise.all(
@@ -119,7 +127,8 @@ export async function pullRoutes(
 
       const projected = entries.map(projectFields);
 
-      // SPEC-033 — order by (priority asc, seq asc) within the page.
+      // Priority lets clients pull critical bucket groups first while still
+      // preserving seq order inside each priority level.
       projected.sort((a, b) => {
         const pa = a.priority ?? 100;
         const pb = b.priority ?? 100;
@@ -127,7 +136,8 @@ export async function pullRoutes(
         return a.seq - b.seq;
       });
 
-      // SPEC-027 — advance checkpoint from raw max, not post-filter.
+      // Advance checkpoint from the raw page, not the projected/sorted response,
+      // so the client does not keep asking for entries it already skipped.
       const rawMaxSeq =
         entries.length > 0 ? entries[entries.length - 1].seq : clientCheckpoint;
 
@@ -167,6 +177,9 @@ export async function pullRoutes(
           bucket: e.bucket,
           tenantId: e.tenantId,
           timestamp: e.timestamp.toISOString(),
+          origin: e.origin,
+          clientId: e.clientId,
+          clientSeq: e.clientSeq,
           priority: e.priority,
         })),
         checkpoint: rawMaxSeq,

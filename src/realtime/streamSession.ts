@@ -1,4 +1,11 @@
 import type { WebSocket } from "@fastify/websocket";
+/*
+ * Stateful /sync/stream session.
+ *
+ * A stream session performs initial backfill from per-bucket checkpoints, sends
+ * entries in priority order, waits for client acknowledgements to manage
+ * backpressure, and can receive live entries after backfill completes.
+ */
 import type { OplogService } from "../oplog/oplogService.js";
 import type { OplogEntry } from "../oplog/oplogSchema.js";
 import type { BucketChecksum } from "../oplog/bucketChecksum.js";
@@ -100,7 +107,8 @@ export class StreamSession {
   }
 
   async backfill(): Promise<void> {
-    // Group buckets by priority asc.
+    // Group buckets by priority asc so clients can hydrate important data first
+    // without opening multiple sockets.
     const byPriority = new Map<number, string[]>();
     for (const b of this.buckets) {
       const p = this.priorityFor(b);

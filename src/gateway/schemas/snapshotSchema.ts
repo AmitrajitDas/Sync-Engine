@@ -1,5 +1,8 @@
 import { Type, type Static } from "@sinclair/typebox";
 
+/*
+ * TypeBox schemas for snapshot query params and metadata frames.
+ */
 export const SnapshotQuerySchema = Type.Object({
   bucket: Type.String(),
   collections: Type.Optional(Type.String()),

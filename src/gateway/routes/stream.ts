@@ -1,10 +1,17 @@
 import type { FastifyInstance } from "fastify";
+/*
+ * GET /sync/stream WebSocket.
+ *
+ * Heavier realtime channel. Unlike /sync/subscribe, this route can backfill and
+ * deliver actual oplog entries over the socket, with client ack/pause/resume.
+ */
 import type { WebSocket } from "@fastify/websocket";
 import type { OplogService } from "../../oplog/oplogService.js";
 import type { SubscriptionRegistry } from "../../realtime/subscriptionRegistry.js";
 import type { BucketChecksum } from "../../oplog/bucketChecksum.js";
 import { StreamSession, type StreamStartFrame } from "../../realtime/streamSession.js";
 import { resolveBucketsWithPriority } from "../../buckets/bucketResolver.js";
+import { ensureWebsocketPlugin } from "../plugins/websocket.js";
 import type { SyncUser } from "../types.js";
 
 export interface StreamRouteOptions {
@@ -28,7 +35,7 @@ export async function streamRoutes(
   app: FastifyInstance,
   opts: StreamRouteOptions,
 ): Promise<void> {
-  await app.register(import("@fastify/websocket"));
+  await ensureWebsocketPlugin(app);
 
   app.get("/sync/stream", { websocket: true }, async (socket: WebSocket, request) => {
     const rawToken = extractToken(request.url, request.headers.authorization);

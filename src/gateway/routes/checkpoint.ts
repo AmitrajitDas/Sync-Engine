@@ -1,4 +1,10 @@
 import type { FastifyInstance } from "fastify";
+/*
+ * GET /sync/checkpoint
+ *
+ * Lightweight "is there anything new?" endpoint. Clients can call this before
+ * a pull to know the latest visible seq for their buckets.
+ */
 import type { OplogService } from "../../oplog/oplogService.js";
 import { CheckpointResponseSchema } from "../schemas/checkpointSchema.js";
 import { DependencyUnavailableError } from "../plugins/errorHandler.js";
@@ -31,6 +37,8 @@ export async function checkpointRoutes(
       let resolved = false;
 
       if (opts.cache) {
+        // Redis checkpoint cache avoids a Mongo query when CDC consumers have
+        // already recorded the latest seq per bucket.
         try {
           const values = await Promise.all(
             buckets.map((b) => opts.cache!.get(`sync:checkpoint:${b}`)),

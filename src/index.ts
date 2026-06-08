@@ -1,4 +1,11 @@
 import "dotenv/config";
+/*
+ * Runtime composition root.
+ *
+ * This is the only file that should know about the real infrastructure:
+ * MongoDB, Redis, Kafka, Postgres pools, gRPC clients, and the Fastify server.
+ * Most other modules accept interfaces/dependencies so tests can swap in fakes.
+ */
 import { parseEnv } from "./config/env.js";
 import { buildApp } from "./app.js";
 import { MongoClient } from "mongodb";
@@ -28,7 +35,8 @@ const env = parseEnv();
 
 setupTracing({ serviceName: "sync-engine", exporterEndpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT });
 
-// Infrastructure connections
+// Infrastructure connections. These are established before accepting traffic so
+// readiness failures happen at boot instead of halfway through a sync request.
 const mongoClient = new MongoClient(env.MONGODB_URI);
 await mongoClient.connect();
 const db = mongoClient.db();
@@ -46,7 +54,8 @@ const oplogService = new OplogService(oplogCollection, seqGen, {
   maxLimit: env.PULL_MAX_LIMIT,
 });
 
-// Realtime subscriptions
+// Realtime subscriptions are process-local, while RedisFanout bridges events
+// between multiple Sync Engine instances.
 const subscriptionRegistry = new SubscriptionRegistry();
 const redisPub = new Redis(env.REDIS_URL);
 const redisSub = new Redis(env.REDIS_URL);
@@ -56,14 +65,15 @@ await redisFanout.start();
 // Bucket checksum store (SPEC-032)
 const bucketChecksum = new BucketChecksum(redis);
 
-// EventBus + consumers
+// EventBus + consumers. CDC events are published here; lower priority numbers
+// run first, so oplog persistence happens before subscriber notification.
 const eventBus = new InProcessEventBus();
 const oplogConsumer = new OplogConsumer(oplogService, redis, bucketChecksum);
 const subscriptionNotifier = new SubscriptionNotifier(subscriptionRegistry, redisFanout);
 eventBus.register(oplogConsumer);
 eventBus.register(subscriptionNotifier);
 
-// CDC consumer
+// CDC consumer turns Debezium/Kafka messages into normalized sync events.
 const kafka = new Kafka({
   clientId: "sync-engine",
   brokers: env.KAFKA_BROKERS.split(","),
@@ -74,11 +84,13 @@ const cdcConsumer = new DebeziumKafkaConsumer(
   {
     groupId: env.KAFKA_CONSUMER_GROUP,
     topicPrefix: env.KAFKA_CDC_TOPIC_PREFIX,
+    topicRefreshIntervalMs: env.KAFKA_TOPIC_REFRESH_INTERVAL_MS,
   },
   undefined,
 );
 
-// gRPC clients
+// gRPC clients delegate decisions and mutations to the RBAC/business service.
+// Sync Engine intentionally does not own business authorization or persistence.
 const rbacCheck = new RbacCheckClient({
   address: env.RBAC_GRPC_ADDRESS,
   timeoutMs: env.RBAC_GRPC_TIMEOUT_MS,

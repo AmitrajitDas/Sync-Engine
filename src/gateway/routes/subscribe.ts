@@ -1,8 +1,15 @@
 import type { FastifyInstance } from "fastify";
+/*
+ * GET /sync/subscribe WebSocket.
+ *
+ * Lightweight realtime channel. It sends checkpoint notifications only; clients
+ * still use /sync/pull to fetch the actual oplog entries.
+ */
 import type { WebSocket } from "@fastify/websocket";
 import type { OplogService } from "../../oplog/oplogService.js";
 import type { SubscriptionRegistry } from "../../realtime/subscriptionRegistry.js";
 import { resolveBuckets } from "../../buckets/bucketResolver.js";
+import { ensureWebsocketPlugin } from "../plugins/websocket.js";
 import type { SyncUser } from "../types.js";
 
 const PING_INTERVAL_MS = 30_000;
@@ -27,7 +34,7 @@ export async function subscribeRoutes(
   app: FastifyInstance,
   opts: SubscribeRouteOptions,
 ): Promise<void> {
-  await app.register(import("@fastify/websocket"));
+  await ensureWebsocketPlugin(app);
 
   app.get("/sync/subscribe", { websocket: true }, async (socket: WebSocket, request) => {
     const rawToken = extractToken(request.url, request.headers.authorization);

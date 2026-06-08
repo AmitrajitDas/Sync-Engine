@@ -1,3 +1,9 @@
+/*
+ * Prometheus metric definitions.
+ *
+ * Routes and infrastructure modules import these metric objects directly and
+ * increment/observe them at the point where the event happens.
+ */
 import {
   Registry,
   Histogram,

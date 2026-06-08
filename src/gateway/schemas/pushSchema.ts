@@ -1,5 +1,8 @@
 import { Type, type Static } from "@sinclair/typebox";
 
+/*
+ * TypeBox schemas for /sync/push validation and response serialization.
+ */
 export const WriteItemSchema = Type.Object({
   collection: Type.String(),
   docId: Type.String(),

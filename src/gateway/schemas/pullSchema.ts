@@ -1,5 +1,8 @@
 import { Type, type Static } from "@sinclair/typebox";
 
+/*
+ * TypeBox schemas for /sync/pull validation and response serialization.
+ */
 export const BucketStateSchema = Type.Object({
   seq: Type.Number(),
   csum: Type.Number(),
@@ -39,6 +42,9 @@ export const PullEntrySchema = Type.Object({
   bucket: Type.String(),
   tenantId: Type.String(),
   timestamp: Type.String(),
+  origin: Type.Union([Type.Literal("server"), Type.Literal("client")]),
+  clientId: Type.Optional(Type.String()),
+  clientSeq: Type.Optional(Type.Number()),
   priority: Type.Optional(Type.Number()),
 });
 

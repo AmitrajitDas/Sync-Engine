@@ -1,4 +1,10 @@
 import * as grpc from "@grpc/grpc-js";
+/*
+ * gRPC wrapper for attachment URL operations.
+ *
+ * Sync Engine does not store blobs. It asks the attachment/RBAC service for
+ * time-limited upload/download URLs scoped to the authenticated user.
+ */
 import type { SyncUser } from "../gateway/types.js";
 import { PermissionError, DependencyUnavailableError } from "../gateway/plugins/errorHandler.js";
 import { createGrpcCircuitBreaker } from "./circuitBreaker.js";

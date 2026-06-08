@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CONNECT_URL="${CONNECT_URL:-http://localhost:8083}"
+CONNECT_URL="${CONNECT_URL:-http://127.0.0.1:8083}"
 CONNECTOR_NAME="rbac-postgres-cdc"
 
 echo "Checking Kafka Connect at $CONNECT_URL …"
@@ -36,13 +36,19 @@ curl -sf -X POST "$CONNECT_URL/connectors" \
       \"database.dbname\": \"${PG_DBNAME:-rbac}\",
       \"database.server.name\": \"business\",
       \"topic.prefix\": \"business\",
+      \"key.converter\": \"org.apache.kafka.connect.json.JsonConverter\",
+      \"key.converter.schemas.enable\": \"false\",
+      \"value.converter\": \"org.apache.kafka.connect.json.JsonConverter\",
+      \"value.converter.schemas.enable\": \"false\",
       \"schema.include.list\": \"public\",
       \"plugin.name\": \"pgoutput\",
       \"slot.name\": \"sync_slot\",
       \"publication.name\": \"sync_pub\",
       \"table.include.list\": \"public.farms,public.plots,public.crops,public.action_events,public.inspections,public.gdc_submissions,public.invoices,public.farm_members,public.attachments\",
       \"transforms\": \"route\",
-      \"transforms.route.type\": \"org.apache.kafka.connect.transforms.ReplaceField\$Value\",
+      \"transforms.route.type\": \"org.apache.kafka.connect.transforms.RegexRouter\",
+      \"transforms.route.regex\": \"business\\\\.public\\\\.(.*)\",
+      \"transforms.route.replacement\": \"business.cdc.public.\$1\",
       \"decimal.handling.mode\": \"string\",
       \"time.precision.mode\": \"connect\"
     }

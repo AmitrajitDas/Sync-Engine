@@ -1,4 +1,11 @@
 import type { FastifyInstance } from "fastify";
+/*
+ * GET /sync/snapshot
+ *
+ * Bootstrap path for a client that needs a full dataset for a bucket. The final
+ * NDJSON line includes snapshotSeq so the client can continue with incremental
+ * pull from the correct oplog checkpoint.
+ */
 import type { OplogService } from "../../oplog/oplogService.js";
 import type { RbacCheckClient } from "../../grpc/RbacCheckClient.js";
 import { pullRules } from "../../sync/syncRules.js";
@@ -97,12 +104,15 @@ export async function snapshotRoutes(
 
       let snapshotSeq: number;
       try {
+        // Capture the oplog high-water mark before streaming rows. The client
+        // uses this seq as the bridge from snapshot to incremental sync.
         snapshotSeq = await opts.oplogService.getLatestSeq([requestedBucket]);
       } catch (err) {
         throw new DependencyUnavailableError(`Oplog unavailable: ${(err as Error).message}`);
       }
 
-      // SPEC-028 — hijack before first write so fastify won't try to finalize.
+      // Hijack before the first write so Fastify does not try to serialize a
+      // normal JSON response after we have started chunked NDJSON streaming.
       reply.hijack();
       reply.raw.writeHead(200, {
         "Content-Type": "application/x-ndjson",

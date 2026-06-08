@@ -1,5 +1,8 @@
 import { Type, type Static } from "@sinclair/typebox";
 
+/*
+ * TypeBox schemas for attachment URL endpoints.
+ */
 export const PresignRequestSchema = Type.Object({
   parentType: Type.String(),
   parentId: Type.String(),

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveCollectionFromTopic } from "../../src/cdc/topicResolver.js";
+import { filterTopicsByPrefix, resolveCollectionFromTopic } from "../../src/cdc/topicResolver.js";
 
 describe("resolveCollectionFromTopic", () => {
   it("strips prefix and returns collection name", () => {
@@ -16,5 +16,14 @@ describe("resolveCollectionFromTopic", () => {
     expect(() => resolveCollectionFromTopic("business.cdc.public.", "business.cdc.public.")).toThrow(
       "empty collection name",
     );
+  });
+
+  it("returns sorted topics matching the CDC prefix", () => {
+    expect(
+      filterTopicsByPrefix(
+        ["other.topic", "business.cdc.public.invoices", "business.cdc.public.farms"],
+        "business.cdc.public.",
+      ),
+    ).toEqual(["business.cdc.public.farms", "business.cdc.public.invoices"]);
   });
 });

@@ -1,5 +1,11 @@
 import { COLLECTIONS } from "../sync/syncRegistry.js";
 
+/*
+ * Derived bucket-group lists for introspection/tests.
+ *
+ * The registry is the source of truth; this file just groups collection names
+ * by the bucket strategy they use.
+ */
 export type BucketTag = string;
 
 function deriveGroups(): { BY_REGION: string[]; BY_USER: string[] } {

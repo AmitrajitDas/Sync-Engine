@@ -1,4 +1,9 @@
-// SPEC-035 — thin compatibility surface, derived from syncRegistry.
+/*
+ * Derived compatibility surface for code that expects pull/write rules.
+ *
+ * Do not edit policy here. Change syncRegistry instead, then these objects will
+ * reflect the new collection behavior automatically.
+ */
 import { COLLECTIONS, effectivePriority, type ClientOperation } from "./syncRegistry.js";
 
 export interface PullRule {
